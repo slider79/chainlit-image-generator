@@ -128,40 +128,19 @@ It opens at `http://localhost:8000`.
 
 Chainlit keeps an open WebSocket to the browser, so it needs a long-lived server. That rules out serverless hosts such as Vercel, and is why this repo ships a [`Dockerfile`](Dockerfile) instead.
 
-### Hugging Face Spaces (free, no card)
+### The static demo, for a free public link
 
-The easiest option, and the one this Dockerfile targets.
+Chainlit cannot run on static hosting, so [`static/index.html`](static/index.html) is a single-page version of the same idea: it calls Pollinations directly from the browser, with no backend, no build step and no key. It carries the same palette, type and motion as the Chainlit app.
 
-1. Go to [huggingface.co/new-space](https://huggingface.co/new-space).
-2. Name it, for example `mirage`, and choose **Docker** as the Space SDK (blank template), visibility **Public**, hardware **CPU basic (free)**.
-3. Create the Space, then push this repo to it:
-   ```bash
-   git remote add space https://huggingface.co/spaces/<your-username>/mirage
-   git push space main
-   ```
-   Alternatively, use the Space's **Files** tab to upload the repository contents directly in the browser.
-4. Add this block to the very top of `README.md` in the Space (Hugging Face reads it as configuration):
-   ```
-   ---
-   title: Mirage
-   emoji: 🎨
-   colorFrom: gray
-   colorTo: purple
-   sdk: docker
-   app_port: 7860
-   ---
-   ```
-5. The Space builds automatically and goes live at `https://huggingface.co/spaces/<your-username>/mirage`.
+Deploy it on a **Hugging Face Static Space** (free): create a Space with SDK **Static**, then upload the contents of the `static/` folder. Its `README.md` already carries the Space configuration block. The same folder also works unchanged on Vercel, Netlify, GitHub Pages or Cloudflare Pages.
 
-No secrets to configure, because Pollinations needs no key.
+This is a demo companion, not a replacement. The Chainlit app is the project; the static page is what can be linked to for free.
 
-### Any other container host
+### Running the real Chainlit app on a host
 
-The same image runs anywhere that takes a Dockerfile. **Railway** ([railway.app](https://railway.app)): New Project, Deploy from GitHub repo, it detects the Dockerfile, and you expose the port it prints. **Fly.io**: `fly launch` then `fly deploy`. **Google Cloud Run**: deploy from source and set the port to `7860`. In each case the container listens on `$PORT`, which the Dockerfile already respects.
+The [`Dockerfile`](Dockerfile) builds it for any host that runs containers and allows WebSockets: **Railway** (New Project, deploy from the GitHub repo, it detects the Dockerfile), **Fly.io** (`fly launch` then `fly deploy`), or **Google Cloud Run**. The container listens on `$PORT`, which the Dockerfile already respects, and there are no secrets to configure because Pollinations needs no key.
 
-### Why not Vercel
-
-Vercel functions are serverless and short-lived, and they do not hold the WebSocket connection Chainlit relies on for streaming and events. The RAG voice backend in this internship suits Vercel precisely because it is request/response; this app is not.
+Two hosts worth calling out. **Hugging Face** offers Docker Spaces, but on some accounts only the Static SDK is available without a payment method, which is why the static build exists. **Vercel** cannot run this at all: its functions are serverless and short-lived, and they do not hold the WebSocket connection Chainlit relies on. The RAG voice backend in this internship suits Vercel precisely because it is request and response; this app is not.
 
 ---
 
@@ -183,6 +162,9 @@ No network and no browser needed. The HTTP client is faked, so the tests cover U
 ├── image_gen.py               Pollinations calls, UI-free so it is testable
 ├── theme_route.py             serves the stylesheet from its own route
 ├── public/style.css           palette, aurora, glassmorphism, motion
+├── static/                    backend-free single-page build, for static hosts
+│   ├── index.html
+│   └── README.md              carries the Hugging Face Space config block
 ├── Dockerfile                 container for Hugging Face Spaces or any host
 ├── requirements.txt           chainlit, httpx
 ├── chainlit.md                the readme shown inside the app
