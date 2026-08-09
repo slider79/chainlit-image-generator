@@ -1,0 +1,25 @@
+{
+  "custom_fonts": [],
+  "variables": {
+    "dark": {
+      "--background": "0 0% 10%",
+      "--foreground": "40 5% 90%",
+      "--card": "0 0% 13%",
+      "--card-foreground": "40 5% 90%",
+      "--popover": "0 0% 13%",
+      "--popover-foreground": "40 5% 90%",
+      "--primary": "40 5% 90%",
+      "--primary-foreground": "0 0% 10%",
+      "--secondary": "0 0% 16%",
+      "--secondary-foreground": "40 5% 90%",
+      "--muted": "0 0% 16%",
+      "--muted-foreground": "40 3% 60%",
+      "--accent": "0 0% 18%",
+      "--accent-foreground": "40 5% 90%",
+      "--border": "30 3% 19%",
+      "--input": "30 3% 19%",
+      "--ring": "40 5% 60%",
+      "--radius": "0rem"
+    }
+  }
+}

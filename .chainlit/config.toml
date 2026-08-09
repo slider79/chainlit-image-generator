@@ -1,0 +1,28 @@
+[project]
+enable_telemetry = false
+user_env = []
+session_timeout = 3600
+cache = false
+
+[features]
+prompt_playground = false
+unsafe_allow_html = false
+latex = false
+auto_tag_thread = true
+
+[features.spontaneous_file_upload]
+enabled = false
+
+[UI]
+name = "Prism"
+description = "Turn a description into an image with Gemini."
+default_theme = "dark"
+layout = "wide"
+cot = "tool_call"
+default_collapse_content = true
+chat_settings_location = "sidebar"
+default_sidebar_state = "open"
+custom_css = "/public/style.css"
+
+[meta]
+generated_by = "2.11.0"

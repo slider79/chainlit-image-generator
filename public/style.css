@@ -1,0 +1,34 @@
+/* Prism: squared-off, low-chrome styling on top of Chainlit's dark theme. */
+
+:root {
+  --prism-line: #333230;
+  --prism-panel: #202020;
+}
+
+/* Sharp corners everywhere, to match the rest of the toolkit. */
+button,
+input,
+textarea,
+.MuiPaper-root,
+[class*="rounded"] {
+  border-radius: 0 !important;
+}
+
+/* Starter cards read as bordered boxes rather than pills. */
+#starters button,
+[data-testid="starter"] {
+  border: 1px solid var(--prism-line) !important;
+  background: var(--prism-panel) !important;
+}
+
+/* Generated images sit in a frame so they read as artefacts, not decoration. */
+.inline-image,
+[class*="image"] img {
+  border: 1px solid var(--prism-line);
+}
+
+/* Keep the message composer visually quiet. */
+#chat-input,
+[data-testid="chat-input"] {
+  border-color: var(--prism-line) !important;
+}
