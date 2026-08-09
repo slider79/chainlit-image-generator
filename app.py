@@ -1,4 +1,4 @@
-"""Prism: a Chainlit image generator powered by Pollinations AI.
+"""Mirage: a Chainlit image generator powered by Pollinations AI.
 
 The point of this file is the decorators. Chainlit builds the entire UI from
 them: you never write a widget, a layout, or a rerun. Each decorator registers a
@@ -21,6 +21,10 @@ from __future__ import annotations
 import random
 
 import chainlit as cl
+
+# Registers the /mirage.css route that serves the stylesheet. Imported for the
+# side effect, hence the noqa.
+import theme_route  # noqa: F401
 
 from image_gen import (
     DEFAULT_SIZE,
@@ -94,9 +98,9 @@ async def on_chat_start() -> None:
     await _settings_panel().send()
     await cl.Message(
         content=(
-            "**Prism** turns a description into an image using "
-            "[Pollinations AI](https://pollinations.ai), which is free and needs no API key.\n\n"
-            "Describe anything and I will draw it. Use the settings panel to change "
+            "**Mirage** conjures an image from a description, using "
+            "[Pollinations AI](https://pollinations.ai): free, open source, no API key.\n\n"
+            "Describe anything and it will be drawn. Use the settings panel to change "
             "the size or style. Larger images can take up to a minute."
         )
     ).send()
@@ -124,7 +128,7 @@ async def _render(result: Generated) -> None:
 
     image = cl.Image(
         content=result.image,
-        name=f"prism-{count}.jpg",
+        name=f"mirage-{count}.jpg",
         display="inline",
         size="large",
     )

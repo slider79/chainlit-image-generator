@@ -14,15 +14,15 @@ auto_tag_thread = true
 enabled = false
 
 [UI]
-name = "Prism"
-description = "Turn a description into an image with Gemini."
+name = "Mirage"
+description = "Conjure an image from a description. Free, no API key."
 default_theme = "dark"
 layout = "wide"
 cot = "tool_call"
 default_collapse_content = true
 chat_settings_location = "sidebar"
 default_sidebar_state = "open"
-custom_css = "/public/style.css"
+custom_css = "/mirage.css"
 
 [meta]
 generated_by = "2.11.0"

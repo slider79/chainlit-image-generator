@@ -1,6 +1,6 @@
-# Prism
+# Mirage
 
-Describe an image and it will be drawn for you, using
+Describe something and it will be drawn, using
 [Pollinations AI](https://pollinations.ai): free, open source, no API key.
 
 Use the **settings panel** to change the image size or style. Every result comes

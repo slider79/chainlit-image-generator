@@ -1,8 +1,8 @@
-# Prism
+# Mirage
 
 **A Chainlit image generator · By Shuja Jamal**
 
-Describe an image, get an image. Prism is a small conversational app built with [Chainlit](https://docs.chainlit.io) to learn how its decorator-driven model works, and how that compares to building the same thing in Streamlit.
+Describe something and watch it appear. Mirage is a conversational image generator built with [Chainlit](https://docs.chainlit.io) to learn how its decorator-driven model works, and how that compares to building the same thing in Streamlit.
 
 Images come from [Pollinations AI](https://pollinations.ai), which is free, open source, and needs **no API key**, so the whole app deploys with no secrets at all.
 
@@ -42,6 +42,27 @@ Chainlit has no layout code. You do not place widgets or manage reruns. You regi
 A decorator is a function that takes a function and registers or wraps it. `@cl.on_message` hands your function to Chainlit's router, so when a message arrives, Chainlit calls it with a `cl.Message`. Nothing else in the file has to know that happened, which is why the app reads as a list of event handlers rather than a script.
 
 UI elements used: `cl.Message` (text), `cl.Image` (inline images), `cl.Action` (buttons), `cl.ChatSettings` with `Select` inputs, `cl.Step` (progress), `cl.Starter` (suggestion cards).
+
+---
+
+## The look
+
+The visual direction came from querying a UI/UX design database for this exact product type, an AI image generation tool, rather than from taste alone. It returned the **AI-Native UI** style (minimal chrome, pulse and reveal motion), an **AI-purple to generation-pink** palette, and the **Kinetic Motion** font pairing. All three are used:
+
+| Decision | What it is | Why |
+| :--- | :--- | :--- |
+| **Aurora backdrop** | Two slow, blurred colour fields drifting behind the app | Gives depth without competing with the images, which are the actual content |
+| **Glassmorphism** | Frosted, translucent panels with hairline violet borders | Lets the aurora read through, so the UI feels layered rather than flat |
+| **Animated gradient borders** | Starter cards trace a violet-to-pink gradient on hover | Draws the eye to the one thing worth clicking on an empty screen |
+| **Shimmer on the step** | The running generation step sweeps a gradient | Waiting looks like work in progress rather than a stall |
+| **Image reveal** | Results fade up from a slight blur and scale | Images arrive rather than pop, which suits a generator |
+| **Type** | Syncopate for the wordmark, Space Mono for metadata, Inter for prose | Syncopate's wide stance reads futuristic; monospace suits seeds and sizes; Inter keeps long messages readable |
+
+The accessibility checklist that came with those recommendations is honoured: focus rings are restyled rather than removed, everything clickable gets a pointer cursor, transitions sit in the 150 to 300ms band, and `prefers-reduced-motion` disables every animation while leaving the interface intact. The aurora is also toned down on small screens, where a full-strength blur is expensive.
+
+Chainlit ships a fixed React frontend, so none of this is done by swapping in components. It is a single stylesheet, [`public/style.css`](public/style.css), which redefines the shadcn colour variables Chainlit's components already read and then layers the effects on top. That stylesheet is the seam Chainlit gives you, and it is enough.
+
+**One implementation detail worth recording.** The obvious route, pointing `custom_css` at `/public/style.css`, returned a 500: Chainlit serves that path with Starlette's `FileResponse`, which calls `anyio.to_thread.run_sync` and raised `NoEventLoopError` here. Rather than pin dependencies and hope, [`theme_route.py`](theme_route.py) reads the file once at import and serves it from an ordinary route, which sidesteps that code path entirely. It also moves itself to the front of the routing table, because Chainlit registers a catch-all that serves the single-page app for any unmatched path, and Starlette matches in registration order, so an appended route would silently return `index.html` instead of CSS. The result is verified working on both the newest Starlette and anyio and on older pinned versions.
 
 ---
 
@@ -112,17 +133,17 @@ Chainlit keeps an open WebSocket to the browser, so it needs a long-lived server
 The easiest option, and the one this Dockerfile targets.
 
 1. Go to [huggingface.co/new-space](https://huggingface.co/new-space).
-2. Name it, for example `prism`, and choose **Docker** as the Space SDK (blank template), visibility **Public**, hardware **CPU basic (free)**.
+2. Name it, for example `mirage`, and choose **Docker** as the Space SDK (blank template), visibility **Public**, hardware **CPU basic (free)**.
 3. Create the Space, then push this repo to it:
    ```bash
-   git remote add space https://huggingface.co/spaces/<your-username>/prism
+   git remote add space https://huggingface.co/spaces/<your-username>/mirage
    git push space main
    ```
    Alternatively, use the Space's **Files** tab to upload the repository contents directly in the browser.
 4. Add this block to the very top of `README.md` in the Space (Hugging Face reads it as configuration):
    ```
    ---
-   title: Prism
+   title: Mirage
    emoji: 🎨
    colorFrom: gray
    colorTo: purple
@@ -130,7 +151,7 @@ The easiest option, and the one this Dockerfile targets.
    app_port: 7860
    ---
    ```
-5. The Space builds automatically and goes live at `https://huggingface.co/spaces/<your-username>/prism`.
+5. The Space builds automatically and goes live at `https://huggingface.co/spaces/<your-username>/mirage`.
 
 No secrets to configure, because Pollinations needs no key.
 
@@ -160,13 +181,12 @@ No network and no browser needed. The HTTP client is faked, so the tests cover U
 .
 ├── app.py                     the Chainlit app: every decorator lives here
 ├── image_gen.py               Pollinations calls, UI-free so it is testable
+├── theme_route.py             serves the stylesheet from its own route
+├── public/style.css           palette, aurora, glassmorphism, motion
 ├── Dockerfile                 container for Hugging Face Spaces or any host
 ├── requirements.txt           chainlit, httpx
 ├── chainlit.md                the readme shown inside the app
 ├── .chainlit/config.toml      app name, dark theme, wide layout, sidebar settings
-├── public/
-│   ├── theme.json             dark palette, squared corners
-│   └── style.css              small styling pass on top
 ├── tests/test_image_gen.py
 └── README.md
 ```

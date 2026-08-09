@@ -183,6 +183,28 @@ def test_decorators_are_registered():
     check(len(cfg.action_callbacks) >= 2, "both action callbacks are registered")
 
 
+def test_stylesheet_route_is_served_and_prioritised():
+    print("\nThe stylesheet is served by its own route, ahead of the SPA catch-all")
+    import app  # noqa: F401  registers the route
+    import theme_route
+    from chainlit.server import app as chainlit_app
+
+    paths = [getattr(r, "path", None) for r in chainlit_app.routes]
+    check(theme_route.CSS_ROUTE in paths, "the route is registered")
+    check(paths.index(theme_route.CSS_ROUTE) == 0, "it sits ahead of the catch-all route")
+
+    css = theme_route._CSS
+    for label, needle in (
+        ("aurora", "mirage-drift-a"),
+        ("palette", "258 90% 66%"),
+        ("display font", "Syncopate"),
+        ("glassmorphism", "backdrop-filter"),
+        ("reduced motion", "prefers-reduced-motion"),
+        ("focus ring", "focus-visible"),
+    ):
+        check(needle in css, f"the stylesheet carries the {label}")
+
+
 def test_no_fake_model_selector():
     print("\nThe UI does not offer a model choice that would do nothing")
     source = (ROOT / "app.py").read_text(encoding="utf-8")
@@ -200,6 +222,7 @@ if __name__ == "__main__":
         test_transient_error_is_retried,
         test_timeout_is_explained,
         test_decorators_are_registered,
+        test_stylesheet_route_is_served_and_prioritised,
         test_no_fake_model_selector,
     ):
         test()
