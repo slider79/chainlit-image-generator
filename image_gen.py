@@ -1,31 +1,58 @@
-"""Gemini image generation, kept separate from the Chainlit UI.
+"""Image generation via Pollinations AI, kept separate from the Chainlit UI.
 
-Isolating this means the generation logic can be tested without a browser or a
-running Chainlit server, and the UI file stays about the UI.
+Pollinations is free and open source, and needs no API key: an image is just a
+GET request to a URL containing the prompt. That is why this project uses it
+rather than a paid image API, and it is also why the app deploys with no
+secrets at all.
 
-Gemini's image models return their result as inline binary data on a response
-part, alongside any text the model wrote, so a response is parsed into both.
+    https://image.pollinations.ai/prompt/<prompt>?width=..&height=..&seed=..
+
+Isolating this from the UI means it can be tested without a browser or a
+running Chainlit server.
+
+A note on what is real, verified against the live service rather than assumed:
+the width, height and seed parameters genuinely change the output, and the same
+seed reproduces the same image. The `model` parameter currently does not: every
+value, including nonsense ones, returns byte-identical images, so this module
+deliberately does not pretend to offer a model choice.
 """
 
 from __future__ import annotations
 
-import os
+import random
 import time
-from dataclasses import dataclass, field
+import urllib.parse
+from dataclasses import dataclass
 
-# Free-tier friendly models, fastest first. The label is what the UI shows.
-MODELS: dict[str, str] = {
-    "gemini-2.5-flash-image": "Flash Image 2.5 (fast, stable)",
-    "gemini-3.1-flash-image": "Flash Image 3.1 (newer)",
-    "gemini-3-pro-image": "Pro Image 3 (highest quality, slower)",
+import httpx
+
+ENDPOINT = "https://image.pollinations.ai/prompt/"
+
+# Label -> (width, height). Pollinations takes pixel dimensions, not a ratio.
+SIZES: dict[str, tuple[int, int]] = {
+    "Square (1:1)": (1024, 1024),
+    "Landscape (16:9)": (1280, 720),
+    "Portrait (9:16)": (720, 1280),
+    "Classic (4:3)": (1024, 768),
+    "Tall (3:4)": (768, 1024),
 }
-DEFAULT_MODEL = "gemini-2.5-flash-image"
+DEFAULT_SIZE = "Square (1:1)"
 
-ASPECT_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4"]
-DEFAULT_ASPECT = "1:1"
+STYLES = [
+    "None",
+    "Photorealistic",
+    "Cinematic",
+    "Watercolour",
+    "Oil painting",
+    "Line art",
+    "Low poly 3D",
+    "Pixel art",
+    "Neon synthwave",
+]
 
-# Rate limiting is the failure to expect on a free key, so retry it.
-_RETRYABLE = (429, 500, 502, 503, 504)
+# Large images can take the best part of a minute, so the timeout is generous.
+TIMEOUT_SECONDS = 180
+_RETRY_STATUSES = (429, 500, 502, 503, 504)
 
 
 class ImageGenError(RuntimeError):
@@ -34,108 +61,108 @@ class ImageGenError(RuntimeError):
 
 @dataclass
 class Generated:
-    """One generation result: the image bytes plus anything the model said."""
+    """One generation result."""
 
-    image: bytes | None = None
-    mime_type: str = "image/png"
-    text: str = ""
-    model: str = DEFAULT_MODEL
-    seconds: float = 0.0
-    prompt: str = ""
-    notes: list[str] = field(default_factory=list)
-
-
-def _redact(text: str) -> str:
-    key = os.environ.get("GEMINI_API_KEY")
-    if key and len(key) >= 8:
-        text = text.replace(key, "[redacted]")
-    return text
+    image: bytes
+    mime_type: str
+    prompt: str
+    size_label: str
+    style: str
+    seed: int
+    seconds: float
 
 
-def _build_prompt(prompt: str, aspect: str, style: str) -> str:
-    """Fold the UI settings into the prompt.
+def build_prompt(prompt: str, style: str) -> str:
+    """Fold the chosen style into the prompt text.
 
-    The image models take direction in plain language rather than separate
-    parameters, so aspect ratio and style are expressed as instructions.
+    Pollinations takes artistic direction in the prompt itself, so style is
+    expressed as words rather than as a separate parameter.
     """
-    parts = [prompt.strip()]
+    prompt = prompt.strip()
     if style and style != "None":
-        parts.append(f"Style: {style}.")
-    if aspect and aspect != "1:1":
-        parts.append(f"Compose it with a {aspect} aspect ratio.")
-    return " ".join(p for p in parts if p)
+        return f"{prompt}, {style.lower()} style"
+    return prompt
+
+
+def build_url(prompt: str, width: int, height: int, seed: int) -> str:
+    """The full request URL. Split out so tests can assert on it cheaply."""
+    query = urllib.parse.urlencode(
+        {"width": width, "height": height, "seed": seed, "nologo": "true"}
+    )
+    return f"{ENDPOINT}{urllib.parse.quote(prompt)}?{query}"
 
 
 class ImageGenerator:
-    def __init__(self, api_key: str | None = None, client=None):
-        if client is not None:
-            self.client = client
-            return
-        key = api_key or os.environ.get("GEMINI_API_KEY")
-        if not key:
-            raise ImageGenError(
-                "GEMINI_API_KEY is not set. Add it to a .env file or your environment."
-            )
-        try:
-            from google import genai
+    """Generates images. `client` is injectable so tests need no network."""
 
-            self.client = genai.Client(api_key=key)
-        except ImportError as exc:  # pragma: no cover
-            raise ImageGenError("google-genai is not installed. Run: pip install google-genai") from exc
+    def __init__(self, client: httpx.Client | None = None):
+        self._client = client
+
+    def _get(self, url: str) -> httpx.Response:
+        if self._client is not None:
+            return self._client.get(url)
+        with httpx.Client(timeout=TIMEOUT_SECONDS, follow_redirects=True) as client:
+            return client.get(url)
 
     def generate(
         self,
         prompt: str,
-        model: str = DEFAULT_MODEL,
-        aspect: str = DEFAULT_ASPECT,
+        size_label: str = DEFAULT_SIZE,
         style: str = "None",
+        seed: int | None = None,
         attempts: int = 3,
     ) -> Generated:
         if not prompt.strip():
             raise ImageGenError("Describe the image you would like first.")
 
-        full_prompt = _build_prompt(prompt, aspect, style)
+        width, height = SIZES.get(size_label, SIZES[DEFAULT_SIZE])
+        if seed is None:
+            seed = random.randint(1, 1_000_000)
+
+        full_prompt = build_prompt(prompt, style)
+        url = build_url(full_prompt, width, height, seed)
         started = time.perf_counter()
 
+        last_status: int | None = None
         for attempt in range(attempts):
             try:
-                response = self.client.models.generate_content(model=model, contents=full_prompt)
-                break
-            except Exception as exc:  # noqa: BLE001
-                code = getattr(exc, "code", None)
-                if code not in _RETRYABLE or attempt == attempts - 1:
-                    if code == 429:
-                        raise ImageGenError(
-                            "Gemini's free tier is rate limited right now. Wait a minute "
-                            "and try again, or switch model in the settings panel."
-                        ) from None
-                    raise ImageGenError(f"Generation failed: {_redact(str(exc))}") from None
+                response = self._get(url)
+            except httpx.TimeoutException:
+                if attempt == attempts - 1:
+                    raise ImageGenError(
+                        "Pollinations took too long to respond. Try a smaller size, "
+                        "or try again in a moment."
+                    ) from None
                 time.sleep(2**attempt)
+                continue
+            except httpx.HTTPError as exc:
+                raise ImageGenError(f"Could not reach Pollinations: {exc}") from None
 
-        result = Generated(
-            model=model, seconds=round(time.perf_counter() - started, 1), prompt=prompt.strip()
-        )
-        self._collect(response, result)
+            if response.status_code == 200:
+                content_type = response.headers.get("content-type", "")
+                if not content_type.startswith("image"):
+                    raise ImageGenError(
+                        "Pollinations returned something that was not an image. "
+                        "Try rewording the prompt."
+                    )
+                return Generated(
+                    image=response.content,
+                    mime_type=content_type.split(";")[0] or "image/jpeg",
+                    prompt=prompt.strip(),
+                    size_label=size_label,
+                    style=style,
+                    seed=seed,
+                    seconds=round(time.perf_counter() - started, 1),
+                )
 
-        if result.image is None:
+            last_status = response.status_code
+            if response.status_code not in _RETRY_STATUSES or attempt == attempts - 1:
+                break
+            time.sleep(2**attempt)
+
+        if last_status == 429:
             raise ImageGenError(
-                "The model replied without an image. That usually means the prompt was "
-                "refused or misread; try rewording it."
-                + (f' It said: "{result.text[:180]}"' if result.text else "")
+                "Pollinations is rate limiting requests right now. Wait a few "
+                "seconds and try again."
             )
-        return result
-
-    @staticmethod
-    def _collect(response, result: Generated) -> None:
-        """Pull image bytes and text out of a response, tolerating odd shapes."""
-        candidates = getattr(response, "candidates", None) or []
-        if not candidates:
-            return
-        content = getattr(candidates[0], "content", None)
-        for part in (getattr(content, "parts", None) or []):
-            inline = getattr(part, "inline_data", None)
-            if inline is not None and getattr(inline, "data", None):
-                result.image = inline.data
-                result.mime_type = getattr(inline, "mime_type", None) or "image/png"
-            elif getattr(part, "text", None):
-                result.text += part.text
+        raise ImageGenError(f"Pollinations returned HTTP {last_status}. Try again shortly.")

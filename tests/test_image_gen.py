@@ -2,10 +2,10 @@
 
 Run with:  python tests/test_image_gen.py
 
-No API key and no browser needed. The Gemini client is faked, so these cover the
-real logic: prompt construction from the settings, parsing an image out of a
-response, retrying a rate limit, and the errors a user would actually see. The
-app module is imported to confirm every decorator is registered.
+No network and no browser needed. The HTTP client is faked, so these cover the
+real logic: URL and prompt construction from the settings, handling a successful
+image, retrying transient failures, seed behaviour, and the errors a user would
+actually see. The app module is imported to confirm every decorator registers.
 """
 
 from __future__ import annotations
@@ -17,7 +17,15 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from image_gen import ImageGenerator, ImageGenError, _build_prompt  # noqa: E402
+import httpx  # noqa: E402
+
+from image_gen import (  # noqa: E402
+    SIZES,
+    ImageGenerator,
+    ImageGenError,
+    build_prompt,
+    build_url,
+)
 
 failures: list[str] = []
 
@@ -28,121 +36,136 @@ def check(cond: bool, label: str) -> None:
         failures.append(label)
 
 
-def image_response(data: bytes = b"PNGDATA", text: str = ""):
-    parts = [SimpleNamespace(inline_data=SimpleNamespace(data=data, mime_type="image/png"), text=None)]
-    if text:
-        parts.append(SimpleNamespace(inline_data=None, text=text))
-    return SimpleNamespace(candidates=[SimpleNamespace(content=SimpleNamespace(parts=parts))])
-
-
-def text_only_response(text: str):
-    return SimpleNamespace(
-        candidates=[SimpleNamespace(content=SimpleNamespace(parts=[SimpleNamespace(inline_data=None, text=text)]))]
+def image_response(status: int = 200, content: bytes = b"\xff\xd8\xffJPEG", ctype: str = "image/jpeg"):
+    return httpx.Response(
+        status_code=status,
+        content=content,
+        headers={"content-type": ctype},
+        request=httpx.Request("GET", "https://image.pollinations.ai/"),
     )
 
 
-class FakeModels:
-    def __init__(self, response=None, fail_times: int = 0, code: int = 429):
-        self.calls = 0
-        self.last_prompt = ""
-        self.last_model = ""
-        self._response = response if response is not None else image_response()
-        self._fail_times = fail_times
-        self._code = code
+class FakeClient:
+    """Stands in for httpx.Client, recording the URLs it was asked for."""
 
-    def generate_content(self, model, contents):
-        self.calls += 1
-        self.last_model = model
-        self.last_prompt = contents
-        if self.calls <= self._fail_times:
-            exc = RuntimeError(f"{self._code} error")
-            exc.code = self._code
-            raise exc
-        return self._response
+    def __init__(self, responses=None, raises=None):
+        self.urls: list[str] = []
+        self._responses = list(responses or [image_response()])
+        self._raises = list(raises or [])
 
-
-def gen(models) -> ImageGenerator:
-    return ImageGenerator(client=SimpleNamespace(models=models))
+    def get(self, url: str):
+        self.urls.append(url)
+        if self._raises:
+            exc = self._raises.pop(0)
+            if exc is not None:
+                raise exc
+        if len(self._responses) > 1:
+            return self._responses.pop(0)
+        return self._responses[0]
 
 
-# ---- prompt construction --------------------------------------------------
+# ---- prompt and URL construction -----------------------------------------
 
 
 def test_prompt_building():
-    print("\nSettings are folded into the prompt")
-    plain = _build_prompt("a cat", "1:1", "None")
-    check(plain == "a cat", "no extras when settings are default")
-    styled = _build_prompt("a cat", "16:9", "Watercolour")
-    check("Watercolour" in styled, "style is included")
-    check("16:9" in styled, "aspect ratio is included")
+    print("\nStyle is folded into the prompt, and only when set")
+    check(build_prompt("a cat", "None") == "a cat", "no suffix when style is None")
+    check("watercolour style" in build_prompt("a cat", "Watercolour"), "style is appended")
+
+
+def test_url_construction():
+    print("\nThe request URL carries the size and seed")
+    url = build_url("a red bike", 1280, 720, 4242)
+    check(url.startswith("https://image.pollinations.ai/prompt/"), "hits the Pollinations endpoint")
+    check("a%20red%20bike" in url, "the prompt is URL encoded")
+    check("width=1280" in url and "height=720" in url, "dimensions are passed")
+    check("seed=4242" in url, "the seed is passed")
+    check("nologo=true" in url, "the watermark is disabled")
 
 
 # ---- generation -----------------------------------------------------------
 
 
 def test_generate_returns_image():
-    print("\nA successful generation returns image bytes and metadata")
-    models = FakeModels(image_response(b"IMG", text="Here you go."))
-    result = gen(models).generate("a red bicycle", model="gemini-2.5-flash-image")
-    check(result.image == b"IMG", "image bytes are extracted")
-    check(result.mime_type == "image/png", "mime type is captured")
-    check(result.text == "Here you go.", "accompanying text is captured")
-    check(result.prompt == "a red bicycle", "original prompt is preserved")
-    check(models.last_model == "gemini-2.5-flash-image", "the chosen model is used")
-    check(result.seconds >= 0, "timing is recorded")
+    print("\nA successful generation returns bytes plus metadata")
+    client = FakeClient()
+    result = ImageGenerator(client=client).generate(
+        "a red bicycle", size_label="Landscape (16:9)", style="Cinematic", seed=7
+    )
+    check(result.image.startswith(b"\xff\xd8\xff"), "image bytes are returned")
+    check(result.mime_type == "image/jpeg", "mime type is captured")
+    check(result.prompt == "a red bicycle", "the user's wording is preserved")
+    check(result.seed == 7, "the requested seed is recorded")
+    check(result.size_label == "Landscape (16:9)", "the chosen size is recorded")
+    width, height = SIZES["Landscape (16:9)"]
+    check(f"width={width}" in client.urls[0], "the size maps to real dimensions")
+
+
+def test_seed_is_random_when_unset():
+    print("\nAn unspecified seed is chosen randomly, so repeats differ")
+    gen = ImageGenerator(client=FakeClient())
+    seeds = {gen.generate("a tree").seed for _ in range(5)}
+    check(len(seeds) > 1, "successive generations use different seeds")
 
 
 def test_empty_prompt_rejected():
-    print("\nAn empty prompt is refused before any API call")
-    models = FakeModels()
+    print("\nAn empty prompt is refused before any request")
+    client = FakeClient()
     try:
-        gen(models).generate("   ")
+        ImageGenerator(client=client).generate("   ")
         check(False, "should raise")
     except ImageGenError:
-        check(models.calls == 0, "no API call is made")
+        check(client.urls == [], "no request is made")
 
 
-def test_text_only_response_explains_itself():
-    print("\nA reply with no image gives a useful message")
-    models = FakeModels(text_only_response("I can't draw that."))
+def test_non_image_response_explained():
+    print("\nA non-image response gives a useful message")
+    client = FakeClient([image_response(ctype="text/html", content=b"<html>")])
     try:
-        gen(models).generate("something")
+        ImageGenerator(client=client).generate("something")
         check(False, "should raise")
     except ImageGenError as exc:
-        check("without an image" in str(exc), "says no image came back")
-        check("can't draw that" in str(exc), "quotes what the model said")
+        check("not an image" in str(exc), "says it was not an image")
 
 
-def test_rate_limit_is_retried():
-    print("\nA 429 is retried, then succeeds")
+def test_transient_error_is_retried():
+    print("\nA transient 503 is retried, then succeeds")
     import time as _t
 
     original = _t.sleep
     _t.sleep = lambda *_: None
     try:
-        models = FakeModels(fail_times=2, code=429)
-        result = gen(models).generate("a fox")
-        check(models.calls == 3, "retried twice before succeeding")
-        check(result.image == b"PNGDATA", "returns the image after recovery")
+        client = FakeClient([image_response(status=503), image_response()])
+        result = ImageGenerator(client=client).generate("a fox")
+        check(len(client.urls) == 2, "retried once before succeeding")
+        check(result.image.startswith(b"\xff\xd8\xff"), "returns the image after recovery")
 
-        persistent = FakeModels(fail_times=99, code=429)
+        limited = FakeClient([image_response(status=429)])
         try:
-            gen(persistent).generate("a fox")
+            ImageGenerator(client=limited).generate("a fox")
             check(False, "should give up eventually")
         except ImageGenError as exc:
-            check("rate limited" in str(exc).lower(), "explains the rate limit plainly")
+            check("rate limiting" in str(exc).lower(), "explains the rate limit plainly")
     finally:
         _t.sleep = original
 
 
-def test_non_retryable_error_fails_fast():
-    print("\nA non-retryable error is not retried")
-    models = FakeModels(fail_times=99, code=400)
+def test_timeout_is_explained():
+    print("\nA timeout is reported in plain words")
+    import time as _t
+
+    original = _t.sleep
+    _t.sleep = lambda *_: None
     try:
-        gen(models).generate("a fox")
-        check(False, "should raise")
-    except ImageGenError:
-        check(models.calls == 1, "only one attempt for a 400")
+        client = FakeClient(raises=[httpx.TimeoutException("slow"), httpx.TimeoutException("slow"),
+                                    httpx.TimeoutException("slow")])
+        try:
+            ImageGenerator(client=client).generate("a fox")
+            check(False, "should raise")
+        except ImageGenError as exc:
+            check("too long" in str(exc), "suggests a smaller size or retry")
+    finally:
+        _t.sleep = original
 
 
 # ---- chainlit wiring ------------------------------------------------------
@@ -157,18 +180,27 @@ def test_decorators_are_registered():
     cfg = cl.config.config.code
     for hook in ("on_chat_start", "on_message", "on_settings_update", "on_chat_end", "set_starters"):
         check(getattr(cfg, hook, None) is not None, f"@cl.{hook} is registered")
-    check(len(cl.config.config.code.action_callbacks) >= 2, "action callbacks are registered")
+    check(len(cfg.action_callbacks) >= 2, "both action callbacks are registered")
+
+
+def test_no_fake_model_selector():
+    print("\nThe UI does not offer a model choice that would do nothing")
+    source = (ROOT / "app.py").read_text(encoding="utf-8")
+    check('id="model"' not in source, "no model selector is rendered")
 
 
 if __name__ == "__main__":
     for test in (
         test_prompt_building,
+        test_url_construction,
         test_generate_returns_image,
+        test_seed_is_random_when_unset,
         test_empty_prompt_rejected,
-        test_text_only_response_explains_itself,
-        test_rate_limit_is_retried,
-        test_non_retryable_error_fails_fast,
+        test_non_image_response_explained,
+        test_transient_error_is_retried,
+        test_timeout_is_explained,
         test_decorators_are_registered,
+        test_no_fake_model_selector,
     ):
         test()
 
