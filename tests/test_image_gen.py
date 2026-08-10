@@ -183,17 +183,33 @@ def test_decorators_are_registered():
     check(len(cfg.action_callbacks) >= 2, "both action callbacks are registered")
 
 
-def test_stylesheet_route_is_served_and_prioritised():
-    print("\nThe stylesheet is served by its own route, ahead of the SPA catch-all")
-    import app  # noqa: F401  registers the route
-    import theme_route
-    from chainlit.server import app as chainlit_app
+def test_async_repair_is_conditional():
+    print("\nThe asyncio repair only fires when nest_asyncio has broken detection")
+    import asyncio
+    import sys
 
-    paths = [getattr(r, "path", None) for r in chainlit_app.routes]
-    check(theme_route.CSS_ROUTE in paths, "the route is registered")
-    check(paths.index(theme_route.CSS_ROUTE) == 0, "it sits ahead of the catch-all route")
+    import runtime_compat
 
-    css = theme_route._CSS
+    if "nest_asyncio" not in sys.modules:
+        check(runtime_compat.REPAIRED is False, "it stays a no-op without nest_asyncio")
+        check(runtime_compat._patch_needed() is False, "nothing to patch here")
+    else:  # pragma: no cover - only under `chainlit run`
+        check(asyncio.current_task is asyncio.tasks._py_current_task, "current_task is repaired")
+
+    # Whatever the launcher, current_task must agree with the task class in use,
+    # since anyio and therefore every static file response depend on it.
+    async def sees_itself() -> bool:
+        return asyncio.current_task() is not None
+
+    check(asyncio.run(sees_itself()), "current_task reports the running task")
+
+
+def test_stylesheet_carries_the_design():
+    print("\nThe stylesheet Chainlit loads carries the darkroom design")
+    css = (ROOT / "public" / "style.css").read_text(encoding="utf-8")
+    config = (ROOT / ".chainlit" / "config.toml").read_text(encoding="utf-8")
+    check('custom_css = "/public/style.css"' in config, "the config points at it")
+
     for label, needle in (
         ("film grain", "dk-grain"),
         ("safelight accent", "#ff4d1c"),
@@ -224,7 +240,8 @@ if __name__ == "__main__":
         test_transient_error_is_retried,
         test_timeout_is_explained,
         test_decorators_are_registered,
-        test_stylesheet_route_is_served_and_prioritised,
+        test_async_repair_is_conditional,
+        test_stylesheet_carries_the_design,
         test_no_fake_model_selector,
     ):
         test()

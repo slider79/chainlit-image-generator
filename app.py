@@ -18,13 +18,15 @@ state is just a dict on the session, and nothing re-runs.
 
 from __future__ import annotations
 
+# Must come first: repairs asyncio detection under Chainlit's nest_asyncio
+# patch, without which every static file, including Chainlit's own JavaScript
+# bundle, is served as a 500 and the page renders blank. See the module for the
+# full chain. Imported for the side effect, hence the noqa.
+import runtime_compat  # noqa: F401
+
 import random
 
 import chainlit as cl
-
-# Registers the /mirage.css route that serves the stylesheet. Imported for the
-# side effect, hence the noqa.
-import theme_route  # noqa: F401
 
 from image_gen import (
     DEFAULT_SIZE,
@@ -155,8 +157,10 @@ async def _render(result: Generated) -> None:
 async def _generate_and_send(prompt: str, seed: int | None = None, hint: str = "") -> None:
     settings = cl.user_session.get("settings") or {}
 
-    # cl.Step shows a collapsible progress entry while the work runs.
-    async with cl.Step(name="Exposing", type="tool") as step:
+    # cl.Step shows a collapsible progress entry while the work runs. It renders
+    # as "Used Pollinations", which names the service the image actually came
+    # from, and expands to show the prompt and the timing.
+    async with cl.Step(name="Pollinations", type="tool") as step:
         step.input = prompt
         try:
             generator = ImageGenerator()

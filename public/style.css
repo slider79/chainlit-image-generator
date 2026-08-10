@@ -191,6 +191,18 @@ textarea,
 }
 
 /* --------------------------------------------------------------------------
+   Avatars. Chainlit's stock mark is a bright magenta that fights the
+   safelight, and a badge beside every line is noise in a text-forward layout.
+   -------------------------------------------------------------------------- */
+img[src*="/avatars/"] {
+  display: none !important;
+}
+
+span:has(> img[src*="/avatars/"]) {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
    The running step: a safelight bar that sweeps while an exposure is made.
    -------------------------------------------------------------------------- */
 [data-testid="step"] {

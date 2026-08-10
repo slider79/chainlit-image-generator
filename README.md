@@ -20,7 +20,7 @@ Images come from [Pollinations AI](https://pollinations.ai), which is free, open
 - Type a description, Pollinations draws it, the image appears inline in the chat.
 - **Starter cards** on the empty screen give one-click example prompts.
 - A **settings panel** switches image size and style mid-conversation.
-- Every image comes with **Generate again** and **Make a variation** buttons, which re-roll the seed.
+- Every image comes with **Expose again** and **Vary** buttons, which re-roll the seed.
 - A collapsible **step** shows the generation running, with timing and the seed used.
 
 ---
@@ -63,7 +63,20 @@ Direction came from querying a UI/UX design database for this product type rathe
 
 Chainlit ships a fixed React frontend, so none of this is done by swapping in components. It is a single stylesheet, [`public/style.css`](public/style.css), which redefines the shadcn colour variables Chainlit's components already read and then layers the effects on top. That stylesheet is the seam Chainlit gives you, and it is enough.
 
-**One implementation detail worth recording.** The obvious route, pointing `custom_css` at `/public/style.css`, returned a 500: Chainlit serves that path with Starlette's `FileResponse`, which calls `anyio.to_thread.run_sync` and raised `NoEventLoopError` here. Rather than pin dependencies and hope, [`theme_route.py`](theme_route.py) reads the file once at import and serves it from an ordinary route, which sidesteps that code path entirely. It also moves itself to the front of the routing table, because Chainlit registers a catch-all that serves the single-page app for any unmatched path, and Starlette matches in registration order, so an appended route would silently return `index.html` instead of CSS. The result is verified working on both the newest Starlette and anyio and on older pinned versions.
+**One bug worth recording, because it took the whole app down.** On Python 3.14 the app served a blank page: the background rendered and nothing else. Every static file, including Chainlit's own JavaScript bundle, came back as a 500, so React never mounted.
+
+The cause is a chain, and each link is reasonable on its own:
+
+1. Chainlit's CLI calls `nest_asyncio.apply()` so the event loop can be re-entered.
+2. To do that, nest_asyncio replaces the C implementation of `asyncio.Task` with the Python one.
+3. On Python 3.14, the C `asyncio.current_task()` reads the running task from the interpreter's thread state, which only the C task writes to. After the swap it returns `None` inside a perfectly ordinary task.
+4. sniffio uses `current_task()` to work out which async library is running, so it now finds none.
+5. `anyio.to_thread.run_sync` asks sniffio for the backend and raises `NoEventLoopError`.
+6. Starlette's `FileResponse` calls it to `stat` the file, so every static file is a 500.
+
+[`runtime_compat.py`](runtime_compat.py) fixes it at the point where the truth is lost, by pointing `asyncio.current_task` at the pure-Python implementation that reads the same registry the Python task writes to. It only acts when nest_asyncio is present, so importing the app or running the tests any other way leaves the standard library untouched.
+
+Finding this needed measurement rather than guesswork. The first theory was a dependency conflict, and downgrading Starlette and anyio changed nothing. Serving the same Chainlit app under plain `uvicorn.run` worked perfectly, which narrowed it to something the CLI does rather than to the versions, and a diagnostic route that reported `current_task()`, the sniffio thread local and the running loop from inside a live request identified the exact link that had broken.
 
 ---
 
@@ -161,8 +174,8 @@ No network and no browser needed. The HTTP client is faked, so the tests cover U
 .
 ├── app.py                     the Chainlit app: every decorator lives here
 ├── image_gen.py               Pollinations calls, UI-free so it is testable
-├── theme_route.py             serves the stylesheet from its own route
-├── public/style.css           palette, aurora, glassmorphism, motion
+├── runtime_compat.py          repairs asyncio detection under nest_asyncio
+├── public/style.css           the darkroom: palette, grain, motion
 ├── static/                    backend-free single-page build, for static hosts
 │   ├── index.html
 │   └── README.md              carries the Hugging Face Space config block
@@ -182,7 +195,7 @@ No network and no browser needed. The HTTP client is faked, so the tests cover U
 
 **There is deliberately no model selector.** Pollinations advertises a `model` parameter, but testing it against the live service returned byte-identical images for `sana`, `flux`, `turbo` and even a nonsense model name, and the models endpoint lists only one model. A dropdown would therefore be a control that does nothing, so the settings panel offers size and style instead, both of which measurably change the result.
 
-**Size and seed are real.** Different dimensions produce genuinely different images, and the same seed reproduces the same image, which is why *Generate again* and *Make a variation* re-roll the seed.
+**Size and seed are real.** Different dimensions produce genuinely different images, and the same seed reproduces the same image, which is why *Expose again* and *Vary* re-roll the seed.
 
 **Timing.** Small images come back in a couple of seconds; 1024px and larger can take the best part of a minute. The client allows 180 seconds, retries transient failures with backoff, and explains a timeout in plain words rather than hanging.
 

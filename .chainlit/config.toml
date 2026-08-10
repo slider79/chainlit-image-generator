@@ -22,7 +22,7 @@ cot = "tool_call"
 default_collapse_content = true
 chat_settings_location = "sidebar"
 default_sidebar_state = "open"
-custom_css = "/mirage.css"
+custom_css = "/public/style.css"
 
 [meta]
 generated_by = "2.11.0"
