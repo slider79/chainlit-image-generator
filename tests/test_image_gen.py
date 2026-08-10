@@ -195,10 +195,12 @@ def test_stylesheet_route_is_served_and_prioritised():
 
     css = theme_route._CSS
     for label, needle in (
-        ("aurora", "mirage-drift-a"),
-        ("palette", "258 90% 66%"),
+        ("film grain", "dk-grain"),
+        ("safelight accent", "#ff4d1c"),
+        ("develop animation", "dk-develop"),
+        ("exposure sweep", "dk-sweep"),
         ("display font", "Syncopate"),
-        ("glassmorphism", "backdrop-filter"),
+        ("zero radius", "--radius: 0rem"),
         ("reduced motion", "prefers-reduced-motion"),
         ("focus ring", "focus-visible"),
     ):

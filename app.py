@@ -98,10 +98,11 @@ async def on_chat_start() -> None:
     await _settings_panel().send()
     await cl.Message(
         content=(
-            "**Mirage** conjures an image from a description, using "
+            "### The darkroom is open.\n\n"
+            "Describe anything and it will be exposed. Images come from "
             "[Pollinations AI](https://pollinations.ai): free, open source, no API key.\n\n"
-            "Describe anything and it will be drawn. Use the settings panel to change "
-            "the size or style. Larger images can take up to a minute."
+            "`SETTINGS` size and style  ·  `SEED` re-rolled on every take  ·  "
+            "`NOTE` large prints take up to a minute"
         )
     ).send()
 
@@ -133,17 +134,19 @@ async def _render(result: Generated) -> None:
         size="large",
     )
 
-    style_note = "" if result.style == "None" else f" · {result.style.lower()}"
+    # Frame numbering, like a contact sheet.
+    style_note = "" if result.style == "None" else f" · {result.style.upper()}"
     caption = (
         f"**{result.prompt}**\n\n"
-        f"`{result.size_label}{style_note}` · seed `{result.seed}` · {result.seconds}s"
+        f"`FRAME {count:03d}` · `{result.size_label.upper()}{style_note}` · "
+        f"`SEED {result.seed}` · `{result.seconds}s`"
     )
 
     # Actions are buttons on a message; clicks route to @cl.action_callback.
     payload = {"prompt": result.prompt, "seed": result.seed}
     actions = [
-        cl.Action(name="regenerate", label="Generate again", payload=payload),
-        cl.Action(name="variation", label="Make a variation", payload=payload),
+        cl.Action(name="regenerate", label="Expose again", payload=payload),
+        cl.Action(name="variation", label="Vary", payload=payload),
     ]
 
     await cl.Message(content=caption, elements=[image], actions=actions).send()
@@ -153,7 +156,7 @@ async def _generate_and_send(prompt: str, seed: int | None = None, hint: str = "
     settings = cl.user_session.get("settings") or {}
 
     # cl.Step shows a collapsible progress entry while the work runs.
-    async with cl.Step(name="Generating with Pollinations", type="tool") as step:
+    async with cl.Step(name="Exposing", type="tool") as step:
         step.input = prompt
         try:
             generator = ImageGenerator()

@@ -14,8 +14,8 @@ auto_tag_thread = true
 enabled = false
 
 [UI]
-name = "Mirage"
-description = "Conjure an image from a description. Free, no API key."
+name = "MIRAGE"
+description = "A darkroom for images that do not exist yet. Free, no API key."
 default_theme = "dark"
 layout = "wide"
 cot = "tool_call"

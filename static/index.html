@@ -5,23 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Mirage</title>
 <meta name="description" content="Conjure an image from a description. Free, no API key." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='38%25' cy='32%25'%3E%3Cstop offset='0%25' stop-color='%23e2b6ff'/%3E%3Cstop offset='60%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='%230e0d12'/%3E%3Ccircle cx='32' cy='32' r='16' fill='url(%23g)'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='38%25' cy='32%25'%3E%3Cstop offset='0%25' stop-color='%23ffd0bd'/%3E%3Cstop offset='60%25' stop-color='%23ff4d1c'/%3E%3Cstop offset='100%25' stop-color='%23ff8a5c'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Ccircle cx='32' cy='32' r='16' fill='url(%23g)'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
 <style>
-  /* Same design system as the Chainlit app: AI-Native UI style, AI-purple to
-     generation-pink palette, Kinetic Motion type pairing. */
+  /* Same darkroom direction as the Chainlit app: near-black, hairline rules,
+     and a single safelight amber, with the images as the only real colour. */
   :root {
-    --bg: #0e0d12;
-    --panel: rgba(20, 18, 28, 0.72);
-    --ink: #eae8f2;
-    --muted: #9c98b0;
-    --violet: #8b5cf6;
-    --pink: #ec4899;
-    --indigo: #6366f1;
-    --line: rgba(167, 139, 250, 0.16);
-    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --bg: #0a0a0a;
+    --panel: #121212;
+    --raised: #171717;
+    --ink: #fafafa;
+    --muted: #8a8580;
+    --amber: #ff4d1c;
+    --amber-dim: rgba(255, 77, 28, 0.14);
+    --line: rgba(250, 250, 250, 0.13);
+    --line-soft: rgba(250, 250, 250, 0.07);
+    --ease: cubic-bezier(0.2, 0, 0, 1);
   }
 
   * { box-sizing: border-box; }
@@ -36,31 +37,31 @@
     overflow-x: hidden;
   }
 
-  /* Aurora backdrop, decorative only. */
-  body::before, body::after {
-    content: ""; position: fixed; z-index: 0; pointer-events: none;
-    border-radius: 50%; filter: blur(120px); opacity: 0.5;
-  }
+  /* Safelight wash across the top of the room. */
   body::before {
-    width: 46vw; height: 46vw; top: -14vw; left: -10vw;
-    background: radial-gradient(circle, var(--violet) 0%, transparent 68%);
-    animation: drift-a 26s var(--ease) infinite alternate;
+    content: ""; position: fixed; inset: 0 0 auto 0; height: 42vh;
+    z-index: 0; pointer-events: none;
+    background: radial-gradient(80% 100% at 50% 0%, rgba(255,77,28,0.11) 0%, transparent 72%);
   }
+  /* Film grain, which is what keeps a flat near-black page from looking empty. */
   body::after {
-    width: 40vw; height: 40vw; bottom: -16vw; right: -8vw;
-    background: radial-gradient(circle, var(--pink) 0%, transparent 68%);
-    animation: drift-b 32s var(--ease) infinite alternate;
+    content: ""; position: fixed; inset: -50%; z-index: 999; pointer-events: none;
+    opacity: 0.16;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain 700ms steps(2) infinite;
   }
-  @keyframes drift-a { from { transform: translate3d(0,0,0) scale(1);} to { transform: translate3d(6vw,8vh,0) scale(1.18);} }
-  @keyframes drift-b { from { transform: translate3d(0,0,0) scale(1.1);} to { transform: translate3d(-7vw,-6vh,0) scale(1);} }
+  @keyframes grain {
+    0% { transform: translate(0,0); }
+    50% { transform: translate(-2%,1%); }
+    100% { transform: translate(1%,-1%); }
+  }
 
   .wrap { position: relative; z-index: 1; max-width: 940px; margin: 0 auto; padding: 54px 20px 90px; }
 
   .brand {
     font-family: 'Syncopate', sans-serif; font-weight: 700;
-    font-size: clamp(1.6rem, 5vw, 2.4rem); letter-spacing: 0.2em; text-transform: uppercase;
-    background: linear-gradient(92deg, #c4b5fd 0%, #f0abfc 52%, #a5b4fc 100%);
-    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: clamp(1.8rem, 7vw, 3.2rem); letter-spacing: 0.24em;
+    text-transform: uppercase; color: var(--ink); line-height: 1.1;
   }
   .tagline { color: var(--muted); font-size: 0.95rem; margin-top: 10px; max-width: 62ch; }
   .rule { border-bottom: 1px solid var(--line); margin: 26px 0; }
@@ -72,26 +73,22 @@
   /* Composer */
   .composer {
     display: flex; gap: 10px; background: var(--panel);
-    backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--line); padding: 10px;
-    transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease);
+    border: 1px solid var(--line-soft); border-bottom: 1px solid var(--line); padding: 10px;
+    transition: border-color 150ms var(--ease);
   }
-  .composer:focus-within {
-    border-color: rgba(167,139,250,0.55);
-    box-shadow: 0 0 0 1px rgba(139,92,246,0.28), 0 0 34px -10px rgba(139,92,246,0.6);
-  }
+  .composer:focus-within { border-bottom-color: var(--amber); }
   .composer input {
     flex: 1; background: transparent; border: none; outline: none;
     color: var(--ink); font-family: inherit; font-size: 1rem; padding: 10px 12px;
   }
   button {
-    font-family: 'Space Mono', monospace; font-size: 0.76rem; letter-spacing: 0.1em;
+    font-family: 'Space Mono', monospace; font-size: 0.74rem; letter-spacing: 0.14em;
     text-transform: uppercase; cursor: pointer; color: var(--ink);
-    background: rgba(139,92,246,0.16); border: 1px solid var(--line);
-    padding: 11px 20px; transition: background 180ms var(--ease), border-color 180ms var(--ease);
+    background: transparent; border: 1px solid var(--line);
+    padding: 11px 20px; transition: color 150ms var(--ease), border-color 150ms var(--ease);
   }
-  button:hover:not(:disabled) { background: rgba(139,92,246,0.3); border-color: rgba(167,139,250,0.5); }
-  button:disabled { opacity: 0.5; cursor: default; }
+  button:hover:not(:disabled) { color: var(--amber); border-color: var(--amber); }
+  button:disabled { opacity: 0.4; cursor: default; }
 
   /* Controls */
   .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
@@ -100,33 +97,27 @@
     background: var(--panel); border: 1px solid var(--line); padding: 9px 12px; cursor: pointer;
   }
 
-  /* Starters with animated gradient border */
+  /* Starters as contact-sheet frames, lit by the safelight on hover. */
   .starters { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
   .starter {
-    position: relative; background: var(--panel); border: 1px solid var(--line);
+    background: var(--panel); border: 1px solid var(--line-soft);
+    border-left: 2px solid var(--line);
     color: var(--muted); font-family: 'Inter', sans-serif; font-size: 0.82rem;
     text-transform: none; letter-spacing: 0; padding: 9px 14px;
-    transition: transform 200ms var(--ease), box-shadow 200ms var(--ease), color 200ms var(--ease);
+    transition: color 150ms var(--ease), border-color 150ms var(--ease), background 150ms var(--ease);
   }
-  .starter::before {
-    content: ""; position: absolute; inset: -1px; padding: 1px;
-    background: linear-gradient(115deg, var(--violet), var(--pink), var(--indigo), var(--violet));
-    background-size: 300% 300%;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude;
-    opacity: 0; transition: opacity 220ms var(--ease); pointer-events: none;
+  .starter:hover {
+    color: var(--ink); background: var(--raised); border-left-color: var(--amber);
   }
-  .starter:hover { transform: translateY(-2px); color: var(--ink); box-shadow: 0 10px 30px -12px rgba(139,92,246,0.55); }
-  .starter:hover::before { opacity: 1; animation: border-run 4s linear infinite; }
-  @keyframes border-run { from { background-position: 0% 50%; } to { background-position: 300% 50%; } }
 
   /* Results */
   .results { margin-top: 30px; display: flex; flex-direction: column; gap: 26px; }
-  .card { border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(18px); }
-  .card img { display: block; width: 100%; height: auto; animation: reveal 520ms var(--ease) both; }
-  @keyframes reveal {
-    from { opacity: 0; transform: scale(0.985) translateY(8px); filter: blur(6px); }
-    to { opacity: 1; transform: none; filter: blur(0); }
+  .card { border: 1px solid var(--line-soft); background: var(--panel); }
+  .card img { display: block; width: 100%; height: auto; animation: develop 900ms var(--ease) both; }
+  /* The print coming up in the tray. */
+  @keyframes develop {
+    from { opacity: 0; filter: brightness(0.25) contrast(1.5); }
+    to { opacity: 1; filter: none; }
   }
   .meta {
     display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -137,30 +128,32 @@
   .actions { display: flex; gap: 8px; padding: 0 14px 14px; }
   .actions button { padding: 7px 13px; font-size: 0.68rem; }
 
-  /* Loading shimmer */
+  /* Exposure in progress: a safelight bar sweeping across. */
   .loading {
-    border: 1px solid var(--line); border-left: 2px solid var(--violet);
-    padding: 16px 18px; font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--muted);
-    background: linear-gradient(90deg, rgba(139,92,246,0.09) 0%, rgba(236,72,153,0.14) 50%, rgba(139,92,246,0.09) 100%);
-    background-size: 200% 100%; animation: shimmer 2.1s linear infinite;
+    border-left: 2px solid var(--amber); background: var(--panel);
+    padding: 16px 18px; font-family: 'Space Mono', monospace; font-size: 0.76rem;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    background-image: linear-gradient(90deg, transparent 0%, var(--amber-dim) 50%, transparent 100%);
+    background-size: 240% 100%; animation: sweep 1.6s linear infinite;
   }
-  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @keyframes sweep { from { background-position: 240% 0; } to { background-position: -240% 0; } }
 
   .note {
     border: 1px solid var(--line); background: var(--panel); padding: 14px 16px;
     color: var(--muted); font-size: 0.83rem; margin-top: 34px;
   }
-  .note a { color: #c4b5fd; }
+  .note a { color: var(--amber); }
   footer { color: var(--muted); font-size: 0.78rem; margin-top: 26px; }
 
-  :focus-visible { outline: 2px solid rgba(167,139,250,0.9); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
   @media (prefers-reduced-motion: reduce) {
-    body::before, body::after, .loading, .card img, .starter:hover::before { animation: none !important; }
+    body::before, body::after, .loading, .card img, .starter:hover { animation: none !important; }
     *, *::before, *::after { transition-duration: 0.01ms !important; }
   }
+  /* Grain is expensive on small screens, and the wash carries it alone. */
   @media (max-width: 640px) {
-    body::before, body::after { opacity: 0.32; filter: blur(90px); }
+    body::after { opacity: 0.1; animation: none; }
   }
 </style>
 </head>
@@ -169,7 +162,7 @@
   <div class="brand">Mirage</div>
   <p class="tagline">
     Conjure an image from a description. Powered by
-    <a href="https://pollinations.ai" style="color:#c4b5fd">Pollinations AI</a>, which is free and
+    <a href="https://pollinations.ai" style="color:var(--amber)">Pollinations AI</a>, which is free and
     open source, so this page needs no API key and no backend at all.
   </p>
 

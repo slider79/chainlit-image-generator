@@ -1,160 +1,149 @@
 /* ==========================================================================
-   Mirage: dark, futuristic styling for the Chainlit shell.
+   MIRAGE - darkroom
 
-   Design decisions come from the ui-ux-pro-max database for an AI image
-   generation tool: the "AI-Native UI" style (minimal chrome, pulse and reveal
-   motion), an AI-purple to generation-pink palette, and the "Kinetic Motion"
-   font pairing of Syncopate for display over Space Mono for technical labels,
-   with Inter carrying body copy so long messages stay readable.
+   The concept: a darkroom, not another AI chat app. Generated images are the
+   only colour in the room; the interface around them is near-black, hairline
+   rules, and a single safelight amber. That accent is the one a real darkroom
+   uses, which is the reason it is here rather than the violet-to-pink gradient
+   every AI product currently ships.
 
-   Chainlit ships a fixed React frontend, so this is done with CSS variables
-   and stylesheet overrides rather than by swapping components in.
+   Direction taken from the ui-ux-pro-max database: the Bold Typography
+   (editorial poster) style, near-black over warm white, hero type well above
+   body size, tight tracking, zero radius, underline CTAs, and colour shifts
+   instead of elevation. Type is the Kinetic Motion pairing, Syncopate over
+   Space Mono, with Inter carrying prose.
+
+   Chainlit ships a compiled React frontend, so this is done by redefining the
+   shadcn colour variables its components already read, then layering on top.
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
 
 :root {
-  --mirage-violet: #8b5cf6;
-  --mirage-pink: #ec4899;
-  --mirage-indigo: #6366f1;
-  --mirage-line: rgba(167, 139, 250, 0.16);
-  --mirage-glass: rgba(20, 18, 28, 0.72);
-  --mirage-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dk-black: #0a0a0a;
+  --dk-surface: #121212;
+  --dk-raised: #171717;
+  --dk-ink: #fafafa;
+  --dk-muted: #8a8580;
+  --dk-line: rgba(250, 250, 250, 0.13);
+  --dk-line-soft: rgba(250, 250, 250, 0.07);
+  /* Darkroom safelight. */
+  --dk-amber: #ff4d1c;
+  --dk-amber-dim: rgba(255, 77, 28, 0.14);
+  --dk-snap: 150ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* --------------------------------------------------------------------------
-   Palette. Chainlit's shadcn layer reads these HSL triplets, so overriding
-   them here re-skins every built-in component. They live in the stylesheet
-   rather than in public/theme.json so there is one file to serve and one
-   place to look.
-   -------------------------------------------------------------------------- */
-/* Applied at :root as well as .dark: the app is configured dark-only, and the
-   theme class is set by the frontend after hydration, so relying on it alone
-   leaves a flash of the default palette on first paint. */
+/* Chainlit's component layer reads these. Set on :root as well as .dark so
+   there is no flash of the stock palette before the theme class lands. */
 :root,
 .dark,
 html.dark {
-  --background: 250 17% 6%;
-  --foreground: 250 20% 92%;
-  --card: 252 20% 9%;
-  --card-foreground: 250 20% 92%;
-  --popover: 252 20% 9%;
-  --popover-foreground: 250 20% 92%;
-  --primary: 258 90% 66%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 252 16% 14%;
-  --secondary-foreground: 250 20% 92%;
-  --muted: 252 16% 14%;
-  --muted-foreground: 252 12% 64%;
-  --accent: 330 81% 60%;
-  --accent-foreground: 0 0% 100%;
+  --background: 0 0% 4%;
+  --foreground: 30 20% 98%;
+  --card: 0 0% 7%;
+  --card-foreground: 30 20% 98%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 30 20% 98%;
+  --primary: 14 100% 55%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 9%;
+  --secondary-foreground: 30 20% 98%;
+  --muted: 0 0% 9%;
+  --muted-foreground: 30 5% 53%;
+  --accent: 14 100% 55%;
+  --accent-foreground: 0 0% 4%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 250 14% 18%;
-  --input: 250 14% 18%;
-  --ring: 258 90% 66%;
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 14 100% 55%;
   --radius: 0rem;
 }
 
-/* --------------------------------------------------------------------------
-   Aurora backdrop. Two slow, blurred colour fields behind everything, fixed so
-   they do not scroll with the transcript. Purely decorative, so it is hidden
-   from assistive tech and disabled under reduced-motion.
-   -------------------------------------------------------------------------- */
-body::before,
-body::after {
-  content: "";
-  position: fixed;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.5;
-}
-
-body::before {
-  width: 46vw;
-  height: 46vw;
-  top: -14vw;
-  left: -10vw;
-  background: radial-gradient(circle, var(--mirage-violet) 0%, transparent 68%);
-  animation: mirage-drift-a 26s var(--mirage-ease) infinite alternate;
-}
-
-body::after {
-  width: 40vw;
-  height: 40vw;
-  bottom: -16vw;
-  right: -8vw;
-  background: radial-gradient(circle, var(--mirage-pink) 0%, transparent 68%);
-  animation: mirage-drift-b 32s var(--mirage-ease) infinite alternate;
-}
-
-@keyframes mirage-drift-a {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(6vw, 8vh, 0) scale(1.18); }
-}
-
-@keyframes mirage-drift-b {
-  from { transform: translate3d(0, 0, 0) scale(1.1); }
-  to   { transform: translate3d(-7vw, -6vh, 0) scale(1); }
-}
-
-/* Keep the app above the aurora. */
-#root { position: relative; z-index: 1; }
-
-/* --------------------------------------------------------------------------
-   Type. Syncopate for the wordmark, Space Mono for technical metadata,
-   Inter for everything a human actually reads at length.
-   -------------------------------------------------------------------------- */
-body,
-input,
-textarea,
-button {
+body {
+  background: var(--dk-black);
+  color: var(--dk-ink);
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* The app name in the header, set wide and futuristic. */
+/* --------------------------------------------------------------------------
+   Film grain. A fixed, non-interactive noise layer over everything, which is
+   what stops a flat near-black page from looking like an empty div. Rendered
+   from an inline SVG so there is no image to fetch.
+   -------------------------------------------------------------------------- */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: dk-grain 700ms steps(2) infinite;
+}
+
+@keyframes dk-grain {
+  0%   { transform: translate(0, 0); }
+  50%  { transform: translate(-2%, 1%); }
+  100% { transform: translate(1%, -1%); }
+}
+
+/* A single hairline safelight wash at the top of the room. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 42vh;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(80% 100% at 50% 0%, rgba(255, 77, 28, 0.11) 0%, transparent 72%);
+}
+
+#root { position: relative; z-index: 1; }
+
+/* --------------------------------------------------------------------------
+   Type. The wordmark is the loudest thing on the page, set wide and warm.
+   -------------------------------------------------------------------------- */
 header a,
 header .text-lg,
 [data-testid="header"] a {
   font-family: 'Syncopate', sans-serif !important;
   font-weight: 700;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  font-size: 0.92rem !important;
-  background: linear-gradient(92deg, #c4b5fd 0%, #f0abfc 52%, #a5b4fc 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 0.86rem !important;
+  color: var(--dk-ink) !important;
+  -webkit-text-fill-color: var(--dk-ink);
 }
 
-/* Inline code and the seed/size metadata line read as machine output. */
+/* Metadata reads like a film stock label: mono, caps, letterspaced. */
 code,
 pre {
   font-family: 'Space Mono', ui-monospace, monospace !important;
-  font-size: 0.82em;
-  background: rgba(139, 92, 246, 0.1) !important;
-  border: 1px solid var(--mirage-line);
-  padding: 0.1em 0.42em;
+  font-size: 0.78em;
+  letter-spacing: 0.04em;
+  background: transparent !important;
+  border: none;
+  border-bottom: 1px solid var(--dk-amber-dim);
+  color: var(--dk-amber) !important;
+  padding: 0 0.1em 0.1em;
 }
 
 /* --------------------------------------------------------------------------
-   Surfaces: glassmorphism. Frosted panels over the aurora rather than flat
-   blocks, with hairline violet borders instead of grey ones.
+   Surfaces. Flat and matte: no glass, no blur, no shadow. Depth comes from
+   hairline rules and from the grain, which is what a darkroom actually has.
    -------------------------------------------------------------------------- */
 .MuiPaper-root,
 [role="dialog"],
 [data-testid="chat-settings"],
 aside,
 [class*="sidebar"] {
-  background: var(--mirage-glass) !important;
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  border-color: var(--mirage-line) !important;
+  background: var(--dk-surface) !important;
+  border-color: var(--dk-line-soft) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
 }
 
-/* Sharp corners throughout, matching the rest of the toolkit. */
 button,
 input,
 textarea,
@@ -164,144 +153,137 @@ textarea,
 }
 
 /* --------------------------------------------------------------------------
-   Starter cards: animated gradient border on hover, which is the one moment
-   the interface is asking to be clicked.
+   Starter cards as contact-sheet frames: ruled, and lit by the safelight on
+   hover rather than lifted by a shadow.
    -------------------------------------------------------------------------- */
 #starters button,
 [data-testid="starter"] {
   position: relative;
-  background: var(--mirage-glass) !important;
-  border: 1px solid var(--mirage-line) !important;
-  transition: transform 200ms var(--mirage-ease), box-shadow 200ms var(--mirage-ease);
+  background: var(--dk-surface) !important;
+  border: 1px solid var(--dk-line-soft) !important;
+  border-left: 2px solid var(--dk-line) !important;
+  padding-left: 1.05rem !important;
+  transition: border-color var(--dk-snap), background var(--dk-snap), color var(--dk-snap);
   cursor: pointer;
-}
-
-#starters button::before,
-[data-testid="starter"]::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  padding: 1px;
-  background: linear-gradient(115deg, var(--mirage-violet), var(--mirage-pink), var(--mirage-indigo), var(--mirage-violet));
-  background-size: 300% 300%;
-  /* Mask keeps the gradient as a border only, not a fill. */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 220ms var(--mirage-ease);
-  pointer-events: none;
 }
 
 #starters button:hover,
 [data-testid="starter"]:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px -12px rgba(139, 92, 246, 0.55);
-}
-
-#starters button:hover::before,
-[data-testid="starter"]:hover::before {
-  opacity: 1;
-  animation: mirage-border 4s linear infinite;
-}
-
-@keyframes mirage-border {
-  from { background-position: 0% 50%; }
-  to   { background-position: 300% 50%; }
+  background: var(--dk-raised) !important;
+  border-left-color: var(--dk-amber) !important;
+  color: var(--dk-ink) !important;
 }
 
 /* --------------------------------------------------------------------------
-   Generated images: framed, and they arrive rather than appear.
+   Generated images: the print. Edged with a hairline, and brought up from
+   black the way an exposure comes up in the tray.
    -------------------------------------------------------------------------- */
 .inline-image img,
 [class*="image"] img {
-  border: 1px solid var(--mirage-line);
-  box-shadow: 0 18px 48px -20px rgba(139, 92, 246, 0.5);
-  animation: mirage-reveal 520ms var(--mirage-ease) both;
+  border: 1px solid var(--dk-line);
+  box-shadow: none;
+  animation: dk-develop 900ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
-@keyframes mirage-reveal {
-  from { opacity: 0; transform: scale(0.985) translateY(8px); filter: blur(6px); }
-  to   { opacity: 1; transform: none; filter: blur(0); }
+@keyframes dk-develop {
+  from { opacity: 0; filter: brightness(0.25) contrast(1.5); }
+  to   { opacity: 1; filter: none; }
 }
 
 /* --------------------------------------------------------------------------
-   The running step gets a shimmer, so waiting looks like work in progress.
+   The running step: a safelight bar that sweeps while an exposure is made.
    -------------------------------------------------------------------------- */
 [data-testid="step"] {
-  border-left: 2px solid var(--mirage-violet);
-  background: linear-gradient(
-    90deg,
-    rgba(139, 92, 246, 0.09) 0%,
-    rgba(236, 72, 153, 0.14) 50%,
-    rgba(139, 92, 246, 0.09) 100%
-  );
-  background-size: 200% 100%;
-  animation: mirage-shimmer 2.1s linear infinite;
+  border: none;
+  border-left: 2px solid var(--dk-amber);
+  background: var(--dk-surface);
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes mirage-shimmer {
-  from { background-position: 200% 0; }
-  to   { background-position: -200% 0; }
+[data-testid="step"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--dk-amber-dim) 50%, transparent 100%);
+  background-size: 240% 100%;
+  animation: dk-sweep 1.6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes dk-sweep {
+  from { background-position: 240% 0; }
+  to   { background-position: -240% 0; }
 }
 
 /* --------------------------------------------------------------------------
-   Composer and controls.
+   Composer. A ruled line rather than a box, lit by the safelight on focus.
    -------------------------------------------------------------------------- */
 #chat-input,
 [data-testid="chat-input"] {
-  background: var(--mirage-glass) !important;
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--mirage-line) !important;
-  transition: border-color 200ms var(--mirage-ease), box-shadow 200ms var(--mirage-ease);
+  background: var(--dk-surface) !important;
+  backdrop-filter: none !important;
+  border: 1px solid var(--dk-line-soft) !important;
+  border-bottom: 1px solid var(--dk-line) !important;
+  transition: border-color var(--dk-snap);
 }
 
 #chat-input:focus-within,
 [data-testid="chat-input"]:focus-within {
-  border-color: rgba(167, 139, 250, 0.55) !important;
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.28), 0 0 34px -10px rgba(139, 92, 246, 0.6);
+  border-bottom-color: var(--dk-amber) !important;
+  box-shadow: none;
 }
 
-/* Action buttons under each image. */
+/* Action buttons are underlined labels, not filled chips. */
 button[class*="action"],
 [data-testid="action-button"] {
-  border: 1px solid var(--mirage-line) !important;
-  transition: background 180ms var(--mirage-ease), border-color 180ms var(--mirage-ease);
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--dk-line) !important;
+  border-radius: 0 !important;
+  font-family: 'Space Mono', monospace !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dk-muted) !important;
+  padding: 0.32rem 0 !important;
+  margin-right: 1.15rem;
+  transition: color var(--dk-snap), border-color var(--dk-snap);
   cursor: pointer;
 }
 
 button[class*="action"]:hover,
 [data-testid="action-button"]:hover {
-  background: rgba(139, 92, 246, 0.16) !important;
-  border-color: rgba(167, 139, 250, 0.5) !important;
+  color: var(--dk-amber) !important;
+  border-bottom-color: var(--dk-amber) !important;
+  background: transparent !important;
+}
+
+/* Messages: ruled off from one another instead of bubbled. */
+[data-testid="message"],
+.message {
+  border-bottom: 1px solid var(--dk-line-soft);
 }
 
 /* --------------------------------------------------------------------------
-   Accessibility, per the checklist that came with the design system.
+   Accessibility, from the checklist that came with the recommendations.
    -------------------------------------------------------------------------- */
-
-/* Never remove focus rings; make them match the palette instead. */
 :focus-visible {
-  outline: 2px solid rgba(167, 139, 250, 0.9);
+  outline: 2px solid var(--dk-amber);
   outline-offset: 2px;
 }
 
-/* Anything clickable says so. */
 button,
 [role="button"],
 a {
   cursor: pointer;
 }
 
-/* Honour reduced-motion: keep the interface, drop the movement. */
 @media (prefers-reduced-motion: reduce) {
-  body::before,
   body::after,
-  [data-testid="step"],
+  [data-testid="step"]::after,
   .inline-image img,
-  [class*="image"] img,
-  #starters button:hover::before,
-  [data-testid="starter"]:hover::before {
+  [class*="image"] img {
     animation: none !important;
   }
 
@@ -312,11 +294,7 @@ a {
   }
 }
 
-/* The aurora is heavy on very small screens, so tone it down. */
+/* Grain is expensive on small screens, and the wash is enough on its own. */
 @media (max-width: 640px) {
-  body::before,
-  body::after {
-    opacity: 0.32;
-    filter: blur(90px);
-  }
+  body::after { opacity: 0.1; animation: none; }
 }

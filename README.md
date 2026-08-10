@@ -47,18 +47,19 @@ UI elements used: `cl.Message` (text), `cl.Image` (inline images), `cl.Action` (
 
 ## The look
 
-The visual direction came from querying a UI/UX design database for this exact product type, an AI image generation tool, rather than from taste alone. It returned the **AI-Native UI** style (minimal chrome, pulse and reveal motion), an **AI-purple to generation-pink** palette, and the **Kinetic Motion** font pairing. All three are used:
+**The concept is a darkroom, not another AI chat app.** The first version of this interface used the aurora-and-violet-gradient look that every AI product currently ships, and it was indistinguishable from all of them. So the room went dark instead: near-black, hairline rules, film grain, and one safelight amber. The generated images end up being the only real colour on screen, which is the point.
 
 | Decision | What it is | Why |
 | :--- | :--- | :--- |
-| **Aurora backdrop** | Two slow, blurred colour fields drifting behind the app | Gives depth without competing with the images, which are the actual content |
-| **Glassmorphism** | Frosted, translucent panels with hairline violet borders | Lets the aurora read through, so the UI feels layered rather than flat |
-| **Animated gradient borders** | Starter cards trace a violet-to-pink gradient on hover | Draws the eye to the one thing worth clicking on an empty screen |
-| **Shimmer on the step** | The running generation step sweeps a gradient | Waiting looks like work in progress rather than a stall |
-| **Image reveal** | Results fade up from a slight blur and scale | Images arrive rather than pop, which suits a generator |
-| **Type** | Syncopate for the wordmark, Space Mono for metadata, Inter for prose | Syncopate's wide stance reads futuristic; monospace suits seeds and sizes; Inter keeps long messages readable |
+| **Safelight amber** | A single accent, `#ff4d1c`, on focus, hover and metadata | It is the colour a real darkroom is lit by, so the palette has a reason behind it rather than borrowing the current AI house style |
+| **Film grain** | A fixed noise layer over everything, drifting in two steps | It stops a flat near-black page reading as an empty div, and ties the surface to photography |
+| **Develop, not fade** | New images come up from near-black through raised contrast | An exposure appearing in the tray, rather than a generic fade and scale |
+| **Exposure sweep** | The running step is a safelight bar sweeping across | Waiting reads as work in progress, and matches the metaphor |
+| **Contact-sheet frames** | Results are numbered `FRAME 001`, with mono, letterspaced metadata | Turns a chat log into a sheet of takes, which is what it actually is |
+| **Flat, not glass** | No blur, no shadow, zero radius; depth is hairline rules only | Frosted glass is the other half of the generic AI look; matte surfaces let the grain do the work |
+| **Type** | Syncopate for the wordmark, Space Mono for metadata, Inter for prose | Editorial poster proportions: display type far above body size, tight tracking, underline CTAs |
 
-The accessibility checklist that came with those recommendations is honoured: focus rings are restyled rather than removed, everything clickable gets a pointer cursor, transitions sit in the 150 to 300ms band, and `prefers-reduced-motion` disables every animation while leaving the interface intact. The aurora is also toned down on small screens, where a full-strength blur is expensive.
+Direction came from querying a UI/UX design database for this product type rather than from taste alone. Its **Bold Typography** (editorial poster) entry supplied the near-black over warm white, the zero radius, the underline CTAs, and the rule that state changes should be colour shifts rather than elevation. Its accessibility checklist is honoured too: focus rings are restyled rather than removed, everything clickable gets a pointer cursor, transitions sit at 150ms, and `prefers-reduced-motion` disables every animation while leaving the interface intact. Grain is reduced on small screens, where it is expensive.
 
 Chainlit ships a fixed React frontend, so none of this is done by swapping in components. It is a single stylesheet, [`public/style.css`](public/style.css), which redefines the shadcn colour variables Chainlit's components already read and then layers the effects on top. That stylesheet is the seam Chainlit gives you, and it is enough.
 
