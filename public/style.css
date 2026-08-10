@@ -116,6 +116,95 @@ header .text-lg,
   -webkit-text-fill-color: var(--dk-ink);
 }
 
+/* Chainlit's header carries no app name, only buttons, so the wordmark goes in
+   the empty slot it centres. It stays visible once the hero has scrolled away. */
+#header {
+  border-bottom: 1px solid var(--dk-line-soft);
+}
+
+#header > div:nth-child(2)::before {
+  content: "Mirage";
+  font-family: 'Syncopate', sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--dk-ink);
+}
+
+/* Narrow screens have no room for it beside the buttons. */
+@media (max-width: 560px) {
+  #header > div:nth-child(2)::before { content: none; }
+}
+
+/* --------------------------------------------------------------------------
+   The empty screen, built to match the standalone page in static/: wordmark,
+   tagline, rule, composer, then the starters under a mono label.
+
+   Chainlit fixes the order of these children in its own markup, so the two
+   pseudo-elements are placed with flex `order` rather than by position. The
+   stock Chainlit logo is hidden: this is Mirage.
+   -------------------------------------------------------------------------- */
+#welcome-screen {
+  /* Chainlit centres this block vertically. The hero belongs at the top of the
+     column, as on the standalone page, so it is anchored there instead. */
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  padding-top: clamp(28px, 9vh, 96px);
+  max-width: 680px;
+  gap: 0 !important;
+}
+
+#welcome-screen img.logo {
+  display: none !important;
+}
+
+#welcome-screen::before {
+  order: 1;
+  content: "Mirage";
+  font-family: 'Syncopate', sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.9rem, 6vw, 3.2rem);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  color: var(--dk-ink);
+}
+
+#welcome-screen::after {
+  order: 2;
+  content: "Conjure an image from a description. Images come from Pollinations AI, which is free and open source, so nothing here needs an API key.";
+  width: 100%;
+  margin: 12px 0 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--dk-line);
+  color: var(--dk-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+#welcome-screen #message-composer {
+  order: 3;
+}
+
+#welcome-screen #starters {
+  order: 4;
+  justify-content: flex-start !important;
+  margin-top: 22px;
+}
+
+#welcome-screen #starters::before {
+  content: "Or start with";
+  width: 100%;
+  margin-bottom: 4px;
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--dk-muted);
+}
+
 /* Metadata reads like a film stock label: mono, caps, letterspaced. */
 code,
 pre {
@@ -178,11 +267,21 @@ textarea,
    Generated images: the print. Edged with a hairline, and brought up from
    black the way an exposure comes up in the tray.
    -------------------------------------------------------------------------- */
+/* Chainlit puts the class on the img itself, not on a wrapper, so this has to
+   be `img.inline-image` and not `.inline-image img`. */
+img.inline-image,
 .inline-image img,
 [class*="image"] img {
   border: 1px solid var(--dk-line);
   box-shadow: none;
   animation: dk-develop 900ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* The wrapper Chainlit gives the image is `bg-accent`, which now resolves to
+   the safelight, so it flashes amber behind a print that is still loading. */
+div:has(> img.inline-image) {
+  background: var(--dk-surface) !important;
+  border-radius: 0 !important;
 }
 
 @keyframes dk-develop {

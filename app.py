@@ -89,7 +89,7 @@ def _settings_panel() -> cl.ChatSettings:
 
 
 # ---------------------------------------------------------------------------
-# @cl.on_chat_start: once per session. Set up state and greet.
+# @cl.on_chat_start: once per session. Set up state and the settings panel.
 # ---------------------------------------------------------------------------
 @cl.on_chat_start
 async def on_chat_start() -> None:
@@ -98,15 +98,10 @@ async def on_chat_start() -> None:
     cl.user_session.set("count", 0)
 
     await _settings_panel().send()
-    await cl.Message(
-        content=(
-            "### The darkroom is open.\n\n"
-            "Describe anything and it will be exposed. Images come from "
-            "[Pollinations AI](https://pollinations.ai): free, open source, no API key.\n\n"
-            "`SETTINGS` size and style  ·  `SEED` re-rolled on every take  ·  "
-            "`NOTE` large prints take up to a minute"
-        )
-    ).send()
+    # Deliberately no greeting message. Chainlit only shows the starter cards
+    # while the thread is empty, so sending one here would hide them the moment
+    # the session opened. The wordmark and the note that would have gone in a
+    # greeting are part of that empty screen instead.
 
 
 # ---------------------------------------------------------------------------

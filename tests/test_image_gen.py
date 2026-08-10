@@ -215,12 +215,30 @@ def test_stylesheet_carries_the_design():
         ("safelight accent", "#ff4d1c"),
         ("develop animation", "dk-develop"),
         ("exposure sweep", "dk-sweep"),
+        ("hero wordmark", "#welcome-screen::before"),
+        ("header wordmark", "#header > div:nth-child(2)::before"),
+        # Chainlit puts the class on the img itself. `.inline-image img` matches
+        # nothing, which is how the frame and the develop animation were silently
+        # doing nothing at all.
+        ("image frame", "img.inline-image"),
         ("display font", "Syncopate"),
         ("zero radius", "--radius: 0rem"),
         ("reduced motion", "prefers-reduced-motion"),
         ("focus ring", "focus-visible"),
     ):
         check(needle in css, f"the stylesheet carries the {label}")
+
+
+def test_chat_start_sends_no_message():
+    print("\nNothing is sent on connect, because it would hide the starters")
+    source = (ROOT / "app.py").read_text(encoding="utf-8")
+    # The module docstring lists the decorators, so the search for the next one
+    # has to start from the handler, not from the top of the file.
+    start = source.index("async def on_chat_start")
+    body = source[start : source.index("@cl.on_settings_update", start)]
+    check(len(body) > 100, "the handler body was actually found")
+    check("cl.Message(" not in body, "on_chat_start sends no message")
+    check("_settings_panel().send()" in body, "it still sends the settings panel")
 
 
 def test_no_fake_model_selector():
@@ -242,6 +260,7 @@ if __name__ == "__main__":
         test_decorators_are_registered,
         test_async_repair_is_conditional,
         test_stylesheet_carries_the_design,
+        test_chat_start_sends_no_message,
         test_no_fake_model_selector,
     ):
         test()

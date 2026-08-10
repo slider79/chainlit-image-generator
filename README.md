@@ -32,7 +32,7 @@ Chainlit has no layout code. You do not place widgets or manage reruns. You regi
 | Decorator | When it runs | What it does here |
 | :--- | :--- | :--- |
 | `@cl.set_starters` | Rendering an empty chat | Returns the four suggestion cards |
-| `@cl.on_chat_start` | Once, when a session opens | Seeds session state, sends the settings panel, greets the user |
+| `@cl.on_chat_start` | Once, when a session opens | Seeds session state and sends the settings panel |
 | `@cl.on_settings_update` | User changes a setting | Stores the new size and style |
 | `@cl.on_message` | Every user message | Generates an image from the message |
 | `@cl.action_callback("regenerate")` | That button is clicked | Same prompt, new seed |
@@ -58,10 +58,13 @@ UI elements used: `cl.Message` (text), `cl.Image` (inline images), `cl.Action` (
 | **Contact-sheet frames** | Results are numbered `FRAME 001`, with mono, letterspaced metadata | Turns a chat log into a sheet of takes, which is what it actually is |
 | **Flat, not glass** | No blur, no shadow, zero radius; depth is hairline rules only | Frosted glass is the other half of the generic AI look; matte surfaces let the grain do the work |
 | **Type** | Syncopate for the wordmark, Space Mono for metadata, Inter for prose | Editorial poster proportions: display type far above body size, tight tracking, underline CTAs |
+| **A hero, not a greeting** | The empty screen opens with the wordmark, a tagline, a rule and the starters, and nothing is sent on connect | Chainlit only shows starter cards while the thread is empty, so a greeting message hid them the instant the session opened. Removing it makes `@cl.set_starters` visible and lets the app open on the same screen as the standalone page |
 
 Direction came from querying a UI/UX design database for this product type rather than from taste alone. Its **Bold Typography** (editorial poster) entry supplied the near-black over warm white, the zero radius, the underline CTAs, and the rule that state changes should be colour shifts rather than elevation. Its accessibility checklist is honoured too: focus rings are restyled rather than removed, everything clickable gets a pointer cursor, transitions sit at 150ms, and `prefers-reduced-motion` disables every animation while leaving the interface intact. Grain is reduced on small screens, where it is expensive.
 
 Chainlit ships a fixed React frontend, so none of this is done by swapping in components. It is a single stylesheet, [`public/style.css`](public/style.css), which redefines the shadcn colour variables Chainlit's components already read and then layers the effects on top. That stylesheet is the seam Chainlit gives you, and it is enough.
+
+The empty screen is worth a note, because it is where the seam is narrowest. Chainlit renders the stock logo, the composer and the starters in that order and gives you no way to change it, so the wordmark and the tagline are pseudo-elements placed with flex `order` rather than by position, and the stock logo is hidden. The result is the same hero as the standalone page: wordmark, tagline, rule, composer, then the starters under a mono label.
 
 **One bug worth recording, because it took the whole app down.** On Python 3.14 the app served a blank page: the background rendered and nothing else. Every static file, including Chainlit's own JavaScript bundle, came back as a 500, so React never mounted.
 
